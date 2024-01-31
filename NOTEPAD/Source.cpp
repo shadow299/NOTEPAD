@@ -1,6 +1,42 @@
 #include <Windows.h>
+#include <commdlg.h>
+#include "resource.h"
+
+#define EDITED 1
+#define UNTITLED TEXT("untitled")
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+BOOL CALLBACK AboutDlgProc(HWND, UINT, WPARAM, LPARAM);
+
+//difining some useful functions
+
+//<<-----Functions for FILE menu ------->>
+void PopFileInitilize(HWND);
+BOOL PopFileOpenDlg(HWND, PTSTR, PTSTR);
+BOOL PopFileSaveDlg(HWND, PTSTR, PTSTR);
+BOOL PopFileRead(HWND, PTSTR);
+BOOL PopFileWrite(HWND, PTSTR);
+
+//<<------Functions for FIND menu--------->>
+HWND PopFindFindDlg(HWND);
+HWND PopFindReplaceDlg(HWND);
+BOOL PopFindFindText(HWND, int*, LPFINDREPLACE);
+BOOL PopFindReplaceText(HWND, int*, LPFINDREPLACE);
+BOOL PopFindNextText(HWND, int*);
+BOOL PopFindValidFind(void);
+
+//<<-------Function for FONT menu----------->>
+void PopFontInitilize(HWND);
+BOOL PopFontChooseFont(HWND);
+void PopFontSetFont(HWND);
+void PopFontDeinitilize(void);
+
+//<<-------Function for Print menu---------->>
+BOOL PopPrintPrintFile(HINSTANCE, HWND, HWND, PTSTR);
+
+
+//Global variables
+static HWND hDlgModelless;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrivInstance, PSTR szCmdLine, int iCmdShow) {
 	static TCHAR szAppName[] = TEXT("Hello Win32 API");
