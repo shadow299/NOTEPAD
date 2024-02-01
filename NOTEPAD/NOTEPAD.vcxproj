@@ -130,6 +130,10 @@
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="filemenuoptions.h" />
+    <ClInclude Include="findmenuoptions.h" />
+    <ClInclude Include="fontmenuoptions.h" />
+    <ClInclude Include="printmenuoptions.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
