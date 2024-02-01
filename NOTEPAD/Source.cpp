@@ -37,12 +37,13 @@ BOOL PopPrintPrintFile(HINSTANCE, HWND, HWND, PTSTR);
 
 //Global variables
 static HWND hDlgModelless;
+static TCHAR szAppName[] = TEXT("POP-PAD");
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrivInstance, PSTR szCmdLine, int iCmdShow) {
-	static TCHAR szAppName[] = TEXT("Hello Win32 API");
 	HWND hwnd;
 	MSG msg;
 	WNDCLASS wndclass;
+	HACCEL hAccel;
 
 	wndclass.style = CS_VREDRAW | CS_HREDRAW;
 	wndclass.lpfnWndProc = WndProc;
@@ -72,16 +73,47 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrivInstance, PSTR szCmdLine,
 		NULL,
 		NULL,
 		hInstance,
-		NULL);
+		szCmdLine);
 
 	ShowWindow(hwnd, iCmdShow);
 	UpdateWindow(hwnd);
+	hAccel = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR1));
 
 	while (GetMessage(&msg, NULL, 0, 0)) {
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+		if (hDlgModelless == 0 || !IsDialogMessage(hDlgModelless, &msg)) {
+			if (!TranslateAccelerator(hwnd, hAccel, &msg)) {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+		}
 	}
 	return msg.wParam;
+}
+
+void DoCaption(HWND hwnd, TCHAR* szTitleName) {
+	TCHAR szCaption[64 + MAX_PATH];
+	wsprintf(szCaption, TEXT("%s - %s"), szAppName, szTitleName[0] ? szTitleName : UNTITLED);
+	SetWindowText(hwnd, szCaption);
+}
+
+void OkMessage(HWND hwnd, TCHAR* szMessage, TCHAR* szTitleName) {
+	TCHAR szBuffer[64 + MAX_PATH];
+	wsprintf(szBuffer, szMessage, szTitleName[0] ? szTitleName : UNTITLED);
+	MessageBox(hwnd, szBuffer, szAppName, MB_OK | MB_ICONEXCLAMATION);
+}
+
+short AskAboutSave(HWND hwnd, TCHAR* szTitleName) {
+	TCHAR szBuffer[64 + MAX_PATH];
+	int iReturn;
+	wsprintf(szBuffer, TEXT("Save current changes in %s?"), szTitleName[0] ? szTitleName : UNTITLED);
+
+	iReturn = MessageBox(hwnd, szBuffer, szAppName, MB_YESNOCANCEL | MB_ICONQUESTION);
+	if (iReturn == IDYES) {
+		if (!SendMessage(hwnd, WM_COMMAND, ID_FILE_SAVE, 0)) {
+			iReturn = IDCANCEL;
+		}
+	}
+	return iReturn;
 }
 
 //handling window message
