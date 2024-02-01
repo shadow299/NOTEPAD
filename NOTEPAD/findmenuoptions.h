@@ -1,7 +1,7 @@
 #include <Windows.h>
 #include <commdlg.h>
 
-#define EDITED 1
+#define EDITID 1
 #define UNTITLED TEXT("untitled")
 
 HWND PopFindFindDlg(HWND);

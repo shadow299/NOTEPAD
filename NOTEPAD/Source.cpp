@@ -2,8 +2,11 @@
 #include <commdlg.h>
 #include "resource.h"
 #include "filemenuoptions.h"
+#include "findmenuoptions.h"
+#include "fontmenuoptions.h"
+#include "printmenuoptions.h"
 
-#define EDITED 1
+#define EDITID 1
 #define UNTITLED TEXT("untitled")
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -19,6 +22,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrivInstance, PSTR szCmdLine,
 	MSG msg;
 	WNDCLASS wndclass;
 	HACCEL hAccel;
+	HMENU hMenu;
 
 	wndclass.style = CS_VREDRAW | CS_HREDRAW;
 	wndclass.lpfnWndProc = WndProc;
@@ -37,16 +41,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrivInstance, PSTR szCmdLine,
 		return 0;
 	}
 
+	hMenu = LoadMenu(hInstance, MAKEINTRESOURCE(IDR_MENU1));
+
 	hwnd = CreateWindow(
 		szAppName,
-		TEXT("Hello win32 API"),
+		TEXT("POP-PAD"),
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
 		NULL,
-		NULL,
+		hMenu,
 		hInstance,
 		szCmdLine);
 
@@ -93,22 +99,115 @@ short AskAboutSave(HWND hwnd, TCHAR* szTitleName) {
 
 //handling window message
 LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	HDC hdc;
-	PAINTSTRUCT ps;
-	RECT rect;
-	LPCWSTR name = L"CREATED";
+	static BOOL bNeedSave = FALSE;
+	static HINSTANCE hInst;
+	static HWND hwndEdit;
+	static int iOffset;
+	static TCHAR szFileName[MAX_PATH], szTitleName[MAX_PATH];
+	static UINT messageFindReplace;
+	int iSelBeg, iSelEnd, iEnable;
+	LPFINDREPLACE pfr;
 
 	switch (message) {
 	case WM_CREATE:
-		MessageBox(NULL, name, name, MB_OK);
+		hInst = ((LPCREATESTRUCT)lParam)->hInstance;
+
+		//creation of edit child window
+		hwndEdit = CreateWindow(TEXT("edit"), NULL, WS_CHILD | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | WS_BORDER | ES_LEFT | ES_MULTILINE | ES_NOHIDESEL | ES_AUTOHSCROLL | ES_AUTOVSCROLL, 0, 0, 0, 0, hwnd, (HMENU)EDITID, hInst, NULL);
+		SendMessage(hwndEdit, EM_LIMITTEXT, 32000, 0L);
+
+		//initilize common dialog box functions
+		PopFileInitilize(hwnd);
+		PopFontInitilize(hwndEdit);
+
+		messageFindReplace = RegisterWindowMessage(FINDMSGSTRING);
+
 		return 0;
 
-	case WM_PAINT:
-		hdc = BeginPaint(hwnd, &ps);
-		GetClientRect(hwnd, &rect);
-		DrawText(hdc, TEXT("Hello Windows 10"), -1, &rect, DT_SINGLELINE|DT_CENTER|DT_VCENTER);
-		EndPaint(hwnd, &ps);
+	case WM_SETFOCUS:
+		SetFocus(hwndEdit);
 		return 0;
+
+	case WM_SIZE:
+		MoveWindow(hwndEdit, 0, 0, LOWORD(lParam), HIWORD(lParam), TRUE);
+		return 0;
+	
+	case WM_INITMENUPOPUP:
+		switch (lParam) {
+		case 1:
+			//edit menu
+			//enable undo if edit menu is ready to do it
+			EnableMenuItem((HMENU)wParam, ID_EDIT_UNDO, SendMessage(hwndEdit, EM_CANUNDO, 0, 0L) ? MF_ENABLED : MF_GRAYED);
+
+			//Enable Paste if text is in Clipboard
+			EnableMenuItem((HMENU)wParam, ID_EDIT_PASTE, IsClipboardFormatAvailable(CF_TEXT) ? MF_ENABLED : MF_GRAYED);
+
+			//Enable cut, copy and del if text is selected;
+			SendMessage(hwndEdit, EM_GETSEL, (WPARAM)&iSelBeg, (LPARAM)&iSelEnd);
+			iEnable = iSelBeg != iSelEnd ? MF_ENABLED : MF_GRAYED;
+			EnableMenuItem((HMENU)wParam, ID_EDIT_CUT, iEnable);
+			EnableMenuItem((HMENU)wParam, ID_EDIT_COPY, iEnable);
+			EnableMenuItem((HMENU)wParam, ID_EDIT_DELETE, iEnable);
+			break;
+
+		case 2:
+			//search menu
+			//Enable find, next, and replace if modelless, dialogs are not already active
+			iEnable = hDlgModelless == NULL ? MF_ENABLED : MF_GRAYED;
+			EnableMenuItem((HMENU)wParam, ID_SEARCH_FIND, iEnable);
+			EnableMenuItem((HMENU)wParam, ID_SEARCH_FINDNEXT, iEnable);
+			EnableMenuItem((HMENU)wParam, ID_SEARCH_REPLACE, iEnable);
+			break;
+		}
+		return 0;
+
+	case WM_COMMAND:
+		//if message from edit control
+		if (lParam && LOWORD(lParam) == EDITID) {
+			switch (HIWORD(wParam)) {
+			case EN_UPDATE:
+				bNeedSave = TRUE;
+				return 0;
+
+			case EN_ERRSPACE:
+			case EN_MAXTEXT:
+				MessageBox(hwnd, TEXT("Edit control out of space"), szAppName, MB_ICONSTOP);
+				return 0;
+			}
+			break;
+		}
+
+		//message from file menu
+		switch (LOWORD(wParam)) {
+		case ID_FILE_NEW:
+			if (bNeedSave && IDCANCEL == AskAboutSave(hwnd, szTitleName)) {
+				return 0;
+			}
+
+			SetWindowText(hwnd, TEXT("\0"));
+			szFileName[0] = '\0';
+			szTitleName[0] = '\0';
+			DoCaption(hwnd, szTitleName);
+			bNeedSave = FALSE;
+			return 0;
+
+		case ID_FILE_OPEN:
+			if (bNeedSave && IDCANCEL == AskAboutSave(hwnd, szTitleName)) {
+				return 0;
+			}
+
+			if (PopFileOpenDlg(hwnd, szFileName, szTitleName)) {
+				if (!PopFileRead(hwnd, szFileName)) {
+					TCHAR szTemp[50] = TEXT("Could not read file %s");
+					OkMessage(hwnd, szTemp, szTitleName);
+					szFileName[0] = '\0';
+					szTitleName[0] = '\0';
+				}
+			}
+			DoCaption(hwnd, szTitleName);
+			bNeedSave = FALSE;
+			return 0;
+		}
 
 	case WM_DESTROY:
 		PostQuitMessage(0);
