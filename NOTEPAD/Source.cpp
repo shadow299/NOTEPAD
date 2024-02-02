@@ -207,11 +207,171 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			DoCaption(hwnd, szTitleName);
 			bNeedSave = FALSE;
 			return 0;
+
+		case ID_FILE_SAVE:
+			if (szFileName[0]) {
+				if (PopFileWrite(hwndEdit, szFileName)) {
+					bNeedSave = FALSE;
+					return 1;
+				}
+				else
+				{
+					static TCHAR szTemp[] = TEXT("Could not write file %s");
+					OkMessage(hwnd, szTemp, szTitleName);
+					return 0;
+				}
+			}
+
+		case ID_FILE_SAVEAS:
+			if (PopFileSaveDlg(hwnd, szFileName, szTitleName)) {
+				DoCaption(hwnd, szTitleName);
+
+				if (PopFileWrite(hwndEdit, szFileName)) {
+					bNeedSave = FALSE;
+					return 1;
+				}
+				else
+				{
+					static TCHAR szTemp[] = TEXT("Could not write file %s");
+					OkMessage(hwnd, szTemp, szTitleName);
+					return 0;
+				}
+			}
+			return 0;
+
+		case ID_FILE_PRINT:
+			if (!PopPrintPrintFile(hInst, hwnd, hwndEdit, szTitleName)) {
+				static TCHAR szTemp[] = TEXT("Could not print file %s");
+				OkMessage(hwnd, szTemp, szTitleName);
+			}
+			return 0;
+
+		case ID_FILE_EXIT:
+			SendMessage(hwnd, WM_CLOSE, 0, 0);
+			return 0;
+
+		
+
+		//Message from edit menu
+
+		case ID_EDIT_UNDO:
+			SendMessage(hwndEdit, WM_UNDO, 0, 0);
+			return 0;
+
+		case ID_EDIT_CUT:
+			SendMessage(hwndEdit, WM_CUT, 0, 0);
+			return 0;
+
+		case ID_EDIT_COPY:
+			SendMessage(hwndEdit, WM_COPY, 0, 0);
+			return 0;
+
+		case ID_EDIT_PASTE:
+			SendMessage(hwndEdit, WM_PASTE, 0, 0);
+			return 0;
+
+		case ID_EDIT_DELETE:
+			SendMessage(hwndEdit, WM_CLEAR, 0, 0);
+			return 0;
+
+		case ID_EDIT_SELECTALL:
+			SendMessage(hwndEdit, EM_SETSEL, 0, -1);
+			return 0;
+
+
+		//message from search menu
+
+		case ID_SEARCH_FIND:
+			SendMessage(hwndEdit, EM_GETSEL, 0, (LPARAM)iOffset);
+			hDlgModelless = PopFindFindDlg(hwnd);
+			return 0;
+
+		case ID_SEARCH_FINDNEXT:
+			SendMessage(hwndEdit, EM_GETSEL, 0, (LPARAM)iOffset);
+			if (PopFindValidFind()) {
+				PopFindNextText(hwndEdit, &iOffset);
+			}
+			else
+			{
+				hDlgModelless = PopFindFindDlg(hwnd);
+			}
+			return 0;
+
+		case ID_SEARCH_REPLACE:
+			SendMessage(hwndEdit, EM_GETSEL, 0, (LPARAM)iOffset);
+			hDlgModelless = PopFindReplaceDlg(hwnd);
+			return 0;
+
+		case ID_FORMAT_FONT:
+			if (PopFontChooseFont(hwnd)) {
+				PopFontSetFont(hwndEdit);
+			}
+			return 0;
+
+		case ID_HELP_HELP:
+			static TCHAR szTemp[] = TEXT("HElp is not implemented!");
+			OkMessage(hwnd, szTemp, szTitleName);
+			return 0;
+
+		case ID_HELP_ABOUTPOPPAD:
+			DialogBox(hInst, MAKEINTRESOURCE(ABOUT_DLG),hwnd, AboutDlgProc);
+			return 0;
+
 		}
+		break;
+
+	case WM_CLOSE:
+		if (!bNeedSave || IDCANCEL != AskAboutSave(hwnd, szTitleName)) {
+			DestroyWindow(hwnd);
+		}
+		return 0;
+
+	case WM_QUERYENDSESSION:
+		if (!bNeedSave || IDCANCEL != AskAboutSave(hwnd, szTitleName)) {
+			return 1;
+		}
+		return 0;
+
 
 	case WM_DESTROY:
+		PopFontDeinitilize();
 		PostQuitMessage(0);
 		return 0;
+
+	default:
+		static TCHAR szTemp[] = TEXT("TExt not found");
+		//process find replace message
+		if (message == messageFindReplace) {
+			pfr = (LPFINDREPLACE)lParam;
+
+			if (pfr->Flags & FR_DIALOGTERM)
+				hDlgModelless = NULL;
+
+			if (pfr->Flags & FR_FINDNEXT)
+				if (!PopFindFindText(hwndEdit, &iOffset, pfr))
+					OkMessage(hwnd, szTemp, szTitleName);
+
+			if (pfr->Flags & FR_REPLACEALL)
+				while (PopFindReplaceText(hwndEdit, &iOffset, pfr));
+			return 0;
+		}
+		break;
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
+}
+
+BOOL CALLBACK AboutDlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam) {
+	switch (message) {
+	case WM_INITDIALOG:
+		return TRUE;
+
+	case WM_COMMAND:
+		switch (LOWORD(wParam)) {
+		case IDOK:
+			EndDialog(hdlg, 0);
+			return TRUE;
+		}
+		break;
+	}
+	return FALSE;
 }

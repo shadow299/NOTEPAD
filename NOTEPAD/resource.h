@@ -6,6 +6,7 @@
 #define IDR_ACCELERATOR1                102
 #define ABOUT_DLG                       103
 #define IDD_DIALOG1                     105
+#define PRINT_DLG                       105
 #define IDC_FILENAME                    1001
 #define ID_FILE_NEW                     40001
 #define ID_FILE_OPEN                    40002
