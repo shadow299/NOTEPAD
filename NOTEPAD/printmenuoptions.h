@@ -1,7 +1,6 @@
 #include <Windows.h>
-#include <commdlg.h>
 
-#define EDITID 1
-#define UNTITLED TEXT("untitled")
 
-BOOL PopPrintPrintFile(HINSTANCE, HWND, HWND, PTSTR);
+BOOL PopPrintPrintFile(HINSTANCE hInst, HWND hwnd, HWND hwndEdit, PTSTR pstrTitleName) {
+	return FALSE;
+}
