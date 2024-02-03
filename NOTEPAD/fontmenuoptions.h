@@ -1,10 +1,50 @@
 #include <Windows.h>
 #include <commdlg.h>
 
-#define EDITID 1
-#define UNTITLED TEXT("untitled")
 
-void PopFontInitilize(HWND);
-BOOL PopFontChooseFont(HWND);
-void PopFontSetFont(HWND);
-void PopFontDeinitilize(void);
+static LOGFONT logfont;
+static HFONT hFont;
+
+void PopFontInitilize(HWND hwndEdit) {
+	GetObject(GetStockObject(SYSTEM_FONT), sizeof(LOGFONT), (PTSTR)&logfont);
+	hFont = CreateFontIndirect(&logfont);
+	SendMessage(hwndEdit, WM_SETFONT, (WPARAM)hFont, 0);
+}
+
+
+BOOL PopFontChooseFont(HWND hwnd) {
+	CHOOSEFONT cf;
+	cf.lStructSize = sizeof(CHOOSEFONT);
+	cf.hwndOwner = hwnd;
+	cf.hDC = NULL;
+	cf.lpLogFont = &logfont;
+	cf.iPointSize = 0;
+	cf.Flags = CF_INITTOLOGFONTSTRUCT | CF_SCREENFONTS | CF_EFFECTS;
+	cf.rgbColors = 0;
+	cf.lCustData = 0;
+	cf.lpfnHook = NULL;
+	cf.lpTemplateName = NULL;
+	cf.hInstance = NULL;
+	cf.lpszStyle = NULL;
+	cf.nFontType = 0;
+	cf.nSizeMin = 0;
+	cf.nSizeMax = 0;
+
+	return ChooseFont(&cf);
+}
+
+void PopFontSetFont(HWND hwndEdit) {
+	HFONT hFontNew;
+	RECT rect;
+	hFontNew = CreateFontIndirect(&logfont);
+	SendMessage(hwndEdit, WM_SETFONT, (WPARAM)hFontNew, 0);
+	DeleteObject(hFont);
+	hFont = hFontNew;
+	GetClientRect(hwndEdit, &rect);
+	InvalidateRect(hwndEdit, &rect, TRUE);
+}
+
+
+void PopFontDeinitilize(void) {
+	DeleteObject(hFont);
+}
