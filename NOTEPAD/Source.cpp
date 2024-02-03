@@ -107,6 +107,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	static UINT messageFindReplace;
 	int iSelBeg, iSelEnd, iEnable;
 	LPFINDREPLACE pfr;
+	
 
 	switch (message) {
 	case WM_CREATE:
@@ -192,13 +193,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			return 0;
 
 		case ID_FILE_OPEN:
+		{
 			if (bNeedSave && IDCANCEL == AskAboutSave(hwnd, szTitleName)) {
 				return 0;
 			}
 
 			if (PopFileOpenDlg(hwnd, szFileName, szTitleName)) {
 				if (!PopFileRead(hwnd, szFileName)) {
-					TCHAR szTemp[50] = TEXT("Could not read file %s");
+					static TCHAR szTemp[] = TEXT("Could not read file %s");
 					OkMessage(hwnd, szTemp, szTitleName);
 					szFileName[0] = '\0';
 					szTitleName[0] = '\0';
@@ -206,9 +208,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			}
 			DoCaption(hwnd, szTitleName);
 			bNeedSave = FALSE;
+		}
 			return 0;
 
 		case ID_FILE_SAVE:
+		{
 			if (szFileName[0]) {
 				if (PopFileWrite(hwndEdit, szFileName)) {
 					bNeedSave = FALSE;
@@ -221,8 +225,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 					return 0;
 				}
 			}
+		}
 
 		case ID_FILE_SAVEAS:
+		{
 			if (PopFileSaveDlg(hwnd, szFileName, szTitleName)) {
 				DoCaption(hwnd, szTitleName);
 
@@ -237,13 +243,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 					return 0;
 				}
 			}
+		}
 			return 0;
 
 		case ID_FILE_PRINT:
+		{
 			if (!PopPrintPrintFile(hInst, hwnd, hwndEdit, szTitleName)) {
 				static TCHAR szTemp[] = TEXT("Could not print file %s");
 				OkMessage(hwnd, szTemp, szTitleName);
 			}
+		}
 			return 0;
 
 		case ID_FILE_EXIT:
@@ -309,8 +318,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			return 0;
 
 		case ID_HELP_HELP:
+		{
 			static TCHAR szTemp[] = TEXT("HElp is not implemented!");
 			OkMessage(hwnd, szTemp, szTitleName);
+		}
 			return 0;
 
 		case ID_HELP_ABOUTPOPPAD:
@@ -339,6 +350,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		return 0;
 
 	default:
+	{
 		static TCHAR szTemp[] = TEXT("TExt not found");
 		//process find replace message
 		if (message == messageFindReplace) {
@@ -355,6 +367,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				while (PopFindReplaceText(hwndEdit, &iOffset, pfr));
 			return 0;
 		}
+	}
 		break;
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
