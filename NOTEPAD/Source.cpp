@@ -4,18 +4,162 @@
 #include "filemenuoptions.h"
 #include "findmenuoptions.h"
 #include "fontmenuoptions.h"
-#include "printmenuoptions.h"
+
+
 
 #define EDITID 1
 #define UNTITLED TEXT("untitled")
 
+
+//Global variables
+BOOL bUserAbort;
+HWND hDlgPrint;
+static HWND hDlgModelless;
+static TCHAR szAppName[] = TEXT("POP-PAD");
+
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 BOOL CALLBACK AboutDlgProc(HWND, UINT, WPARAM, LPARAM);
 
+BOOL CALLBACK PrintDlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam) {
+	switch (message) {
+	case WM_INITDIALOG:
+		return TRUE;
 
-//Global variables
-static HWND hDlgModelless;
-static TCHAR szAppName[] = TEXT("POP-PAD");
+	case WM_COMMAND:
+		bUserAbort = TRUE;
+		EnableWindow(GetParent(hdlg), TRUE);
+		DestroyWindow(hdlg);
+		hDlgPrint = NULL;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+BOOL CALLBACK AbortProc(HDC hdcprn, int iCode) {
+	MSG msg;
+
+	while (!bUserAbort && PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+		if (!hDlgPrint || !IsDialogMessage(hDlgPrint, &msg)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+	}
+	return !bUserAbort;
+}
+
+BOOL PopPrintPrintFile(HINSTANCE hInst, HWND hwnd, HWND hwndEdit, PTSTR pstrTitleName) {
+	static DOCINFO di = { sizeof(DOCINFO) };
+	static PRINTDLG pd;
+	BOOL bSuccess;
+	int yChar, iCharPerLines, iLinesPerPage, iTotalLines, iTotalPages, iPage, iLine, iLIneNum;
+	PTSTR pstrBuffer;
+	TCHAR szJobName[64 + MAX_PATH];
+	TEXTMETRIC tm;
+	WORD iColCopy, iNoiColCopy;
+
+	//invoke print common dialog box
+
+	pd.lStructSize = sizeof(PRINTDLG);
+	pd.hwndOwner = hwnd;
+	pd.hDevMode = NULL;
+	pd.hDevNames = NULL;
+	pd.hDC = NULL;
+	pd.Flags = PD_ALLPAGES | PD_COLLATE | PD_RETURNDC | PD_NOSELECTION;
+	pd.nFromPage = 0;
+	pd.nToPage = 0;
+	pd.nMinPage = 0;
+	pd.nMaxPage = 0;
+	pd.nCopies = 1;
+	pd.hInstance = NULL;
+	pd.lCustData = 0L;
+	pd.lpfnPrintHook = NULL;
+	pd.lpfnSetupHook = NULL;
+	pd.lpPrintTemplateName = NULL;
+	pd.lpSetupTemplateName = NULL;
+	pd.hPrintTemplate = NULL;
+	pd.hSetupTemplate = NULL;
+
+	if (!PrintDlg(&pd)) {
+		return TRUE;
+	}
+
+	if (0 == (iTotalLines = SendMessage(hwndEdit, EM_GETLINECOUNT, 0, 0))) {
+		return TRUE;
+	}
+
+	GetTextMetrics(pd.hDC, &tm);
+	yChar = tm.tmHeight + tm.tmExternalLeading;
+	iCharPerLines = GetDeviceCaps(pd.hDC, HORZRES) / tm.tmAveCharWidth;
+	iLinesPerPage = GetDeviceCaps(pd.hDC, VERTRES) / yChar;
+	iTotalPages = (iTotalLines + iLinesPerPage - 1) / iLinesPerPage;
+
+	//Allocate buffer for each line
+
+	pstrBuffer = (PTSTR)malloc(sizeof(TCHAR) * (iCharPerLines + 1));
+
+	//diaplay printing dialog box
+
+	EnableWindow(hwnd, FALSE);
+	bSuccess = TRUE;
+	bUserAbort = FALSE;
+
+	hDlgPrint = CreateDialog(hInst, MAKEINTRESOURCE(PRINT_DLG), hwnd, PrintDlgProc);
+	SetDlgItemText(hDlgPrint, IDC_FILENAME, pstrTitleName);
+
+	SetAbortProc(pd.hDC, AbortProc);
+
+	//start the doc
+	GetWindowText(hwnd, szJobName, sizeof(szJobName));
+	di.lpszDocName = szJobName;
+	if (StartDoc(pd.hDC, &di) > 0) {
+		for (iColCopy = 0; iColCopy < ((WORD)pd.Flags & PD_COLLATE ? pd.nCopies : 1); iColCopy++) {
+			for (iPage = 0; iPage < iTotalPages; iPage++) {
+				for (iNoiColCopy = 0; iNoiColCopy < ((WORD)pd.Flags & PD_COLLATE ? pd.nCopies : 1); iNoiColCopy++) {
+					//start the page
+					if (StartPage(pd.hDC) < 0) {
+						bSuccess = FALSE;
+						break;
+					}
+
+					//for each page print the line
+					for (iLine = 0; iLine < iLinesPerPage; iLine++) {
+						iLIneNum = iLinesPerPage * iPage + iLine;
+						if (iLIneNum > iTotalLines) {
+							break;
+						}
+						*(int*)pstrBuffer = iCharPerLines;
+						TextOut(pd.hDC, 0, yChar * iLine, pstrBuffer, (int)SendMessage(hwndEdit, EM_GETLINE, (WPARAM)iLIneNum, (LPARAM)pstrBuffer));
+					}
+					if (EndPage(pd.hDC) < 0) {
+						bSuccess = FALSE;
+						break;
+					}
+					if (bUserAbort)
+						break;
+				}
+				if (!bSuccess || bUserAbort)
+					break;
+			}
+			if (!bSuccess || bUserAbort)
+				break;
+		}
+	}
+	else
+		bSuccess = FALSE;
+
+	if (bSuccess)
+		EndDoc(pd.hDC);
+
+	if (!bUserAbort) {
+		EnableWindow(hwnd, TRUE);
+		DestroyWindow(hDlgPrint);
+	}
+	free(pstrBuffer);
+	DeleteDC(pd.hDC);
+	return bSuccess && !bUserAbort;
+
+}
+
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrivInstance, PSTR szCmdLine, int iCmdShow) {
 	HWND hwnd;

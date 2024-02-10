@@ -133,7 +133,7 @@
     <ClInclude Include="filemenuoptions.h" />
     <ClInclude Include="findmenuoptions.h" />
     <ClInclude Include="fontmenuoptions.h" />
-    <ClInclude Include="printmenuoptions.h" />
+    <ClInclude Include="GETPRINTERDC.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
